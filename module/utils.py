@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
 
 
 FILEPATH_TRAIN = './data/training.txt'
@@ -23,7 +24,15 @@ def native_country_corrector(x):
 
 
 def preprocess_data(data, train):
-    """Perform preprocessing operations on data. For normalization, check if data is for training or test."""
+    """Perform preprocessing operations on data. For normalization, check if data is for training or test.
+
+    Parameters:
+        data: dataframe to preprocess.
+        train: boolean, True if 'data' is for training.
+
+    Returns:
+        preprocessed data.
+    """
 
     data = data.drop(['fnlwgt', 'education', 'relationship', 'capital_gain', 'capital_loss'], axis=1)
     data_num = data.select_dtypes(include=np.number)
@@ -45,7 +54,41 @@ def preprocess_data(data, train):
     data = data[(data['workclass'] != " ?") & (data['occupation'] != " ?") & (data['native_country'] != " ?")]
 
     column_native = data['native_country']
-    column_native = list(map(native_country_corrector, column_native))
+    data['native_country'] = list(map(native_country_corrector, column_native))
     data = pd.get_dummies(data)
     return data
 
+
+def train_validation_split(train, percentage):
+    """Split training data in training and validation sets.
+
+    Parameters:
+        train: training data to split.
+        percentage: float < 1 representing the percentage of 'data' in the validation set.
+
+    Returns:
+        X_train.
+        X_valid.
+        y_train.
+        y_valid.
+    """
+
+    # to address the imbalance problem
+    target_high = train[train['target_ >50K'] == 1]
+    for i in range(2):
+        train = train.append(target_high)
+
+    train = train.to_numpy()
+    x_train_ov = train[:, :-2]
+    y_train_ov = train[:, -2]
+
+    X_train, X_valid, y_train, y_valid = train_test_split(x_train_ov, y_train_ov, test_size=percentage, random_state=42)
+    return X_train, X_valid, y_train, y_valid
+
+
+train, test = get_data()
+train = preprocess_data(train, True)
+test = preprocess_data(test, False)
+
+X_train, X_valid, y_train, y_valid = train_validation_split(train, 0.2)
+print("here")
