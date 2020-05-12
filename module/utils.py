@@ -1,53 +1,51 @@
 import numpy as np
 import pandas as pd
-import torch
-from torch.utils.data import TensorDataset
+from sklearn import preprocessing
 
 
 FILEPATH_TRAIN = './data/training.txt'
 FILEPATH_TEST = './data/test.txt'
 HEADER = ['age', 'workclass', 'fnlwgt', 'education', 'education_num', 'marital_status', 'occupation', 'relationship',
           'race', 'sex', 'capital_gain', 'capital_loss', 'hours_per_week', 'native_country', 'target']
-
+Z_THRESHOLD = 3
+min_max_scaler = preprocessing.MinMaxScaler()
 
 def get_data():
-    """Return three numpy arrays: training data, target for training, test data."""
-    train = pd.read_csv(FILEPATH_TRAIN, sep='\t', index=False, header=HEADER)
-    test = pd.read_csv(FILEPATH_TEST, sep='\t')
-    train = np.array(train.values)
-    test = np.array(test.values)
-    x_train = train[:, :-1]
-    y_train = train[:, -1]
-    return x_train, y_train, test
-
-
-def analyze_data():
+    """Return two pandas dataframes: training data and test data."""
     train = pd.read_csv(FILEPATH_TRAIN, sep='\t', names=HEADER)
-    train_temp = train.loc[(train['capital_gain'] == 0) & (train['capital_loss'] == 0)]
-    print("Percentage of data with capital gain/loss equal to 0: {}%".format(100 * len(train_temp) / len(train)))
-
-    # some information on numerical attributes.
-    train_num = train.select_dtypes(include=np.number)
-    for c in train_num.columns:
-        train_num_col = train_num[c].to_numpy()
-        print("{}: mean = {}, std = {}, min = {}, max = {}.".format(c, train_num_col.mean(), train_num_col.std(),
-                                                                    train_num_col.min(), train_num_col.max()))
-    # some information on categorical attributes.
-    for c in train.columns:
-        if c not in train_num.columns:
-            train_cat_col = train[c].values
-            print("{} - {}.".format(c, set(train_cat_col)))
-    #         for t in train_cat_col:
-    #             if (t == " ?"):
-    #                 print("here")
-    #         print("{}: null values = {}".format(c, len([t for t in train_cat_col if t == "?"])))
-    # train = pd.get_dummies(train)
-    # print("here")
+    test = pd.read_csv(FILEPATH_TEST, sep='\t', names=HEADER[:-1])
+    return train, test
 
 
+def native_country_corrector(x):
+    x = x.strip()
+    return x if x == 'United-States' else 'Other'
 
-# x_train, y_train, x_test = get_data()
-analyze_data()
 
+def preprocess_data(data, train):
+    """Perform preprocessing operations on data. For normalization, check if data is for training or test."""
 
+    data = data.drop(['fnlwgt', 'education', 'relationship', 'capital_gain', 'capital_loss'], axis=1)
+    data_num = data.select_dtypes(include=np.number)
+
+    # normalize numerical data.
+    np_scaled = min_max_scaler.fit_transform(data_num) if train else min_max_scaler.transform(data_num)
+    data_num_normalized = pd.DataFrame(np_scaled, columns=data_num.columns)
+
+    # replace normalized columns in the dataframe.
+    for col in data_num_normalized.columns:
+        data[col] = data_num_normalized[col]
+
+    columns_cat = []
+    for c in data.columns:
+        if c not in data_num.columns:
+            columns_cat.append(c)
+
+    # remove rows with null categorical values.
+    data = data[(data['workclass'] != " ?") & (data['occupation'] != " ?") & (data['native_country'] != " ?")]
+
+    column_native = data['native_country']
+    column_native = list(map(native_country_corrector, column_native))
+    data = pd.get_dummies(data)
+    return data
 
