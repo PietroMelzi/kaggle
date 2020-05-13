@@ -1,12 +1,11 @@
-import module.utils as u
+import utils as u
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-from module.ANN import ANN
-import torch.nn.functional as F
+from ANN import ANN
 
 VALID_PERCENTAGE = 0.33
 bs = 400
-lr = 0.5
+lr = 0.2
 epochs = 5
 
 
@@ -34,7 +33,7 @@ def get_data_for_learner():
     test = u.preprocess_data(test, False)
     X_train, X_valid, y_train, y_valid = u.train_validation_split(train, VALID_PERCENTAGE)
     x_train, y_train, x_valid, y_valid = map(torch.tensor, (X_train, y_train, X_valid, y_valid))
-    test = torch.tensor(test)
+    test = torch.tensor(test.to_numpy())
 
     x_train = x_train.float()
     y_train = y_train.long()

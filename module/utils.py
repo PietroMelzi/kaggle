@@ -51,11 +51,17 @@ def preprocess_data(data, train):
             columns_cat.append(c)
 
     # remove rows with null categorical values.
-    data = data[(data['workclass'] != " ?") & (data['occupation'] != " ?") & (data['native_country'] != " ?")]
+    if train:
+        data = data[(data['workclass'] != " ?") & (data['occupation'] != " ?") & (data['native_country'] != " ?")]
 
     column_native = data['native_country']
     data['native_country'] = list(map(native_country_corrector, column_native))
     data = pd.get_dummies(data)
+
+    # in test set I cannot remove rows. OHE creates columns related to null values.
+    if not train:
+        data = data.drop(['workclass_ ?', 'occupation_ ?'], axis=1)
+
     return data
 
 
@@ -85,9 +91,3 @@ def train_validation_split(train, percentage):
     X_train, X_valid, y_train, y_valid = train_test_split(x_train_ov, y_train_ov, test_size=percentage, random_state=42)
     return X_train, X_valid, y_train, y_valid
 
-
-train, test = get_data()
-train = preprocess_data(train, True)
-test = preprocess_data(test, False)
-
-X_train, X_valid, y_train, y_valid = train_validation_split(train, 0.2)
